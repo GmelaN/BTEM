@@ -1,2 +1,4 @@
 keys.enc
 keys.json
+.vscode/settings.json
+lib/*
