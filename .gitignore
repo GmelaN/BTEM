@@ -1,4 +1,5 @@
 keys.enc
 keys.json
-.vscode/settings.json
-lib/*
+.vscode
+lib
+__pycache__
