@@ -15,7 +15,7 @@ from typing import Literal, Dict
 
 from time import sleep
 
-from Duration import Duration
+from .Duration import Duration
 
 import FinanceDataReader as fdr
 
@@ -169,7 +169,7 @@ class DataFetcher():
 
         try:
             for batch_start, batch_end in duration:
-                data = fdr.DataReader(symbol="BTC", start=batch_start.strftime("%Y-%m-%dT%H%M%S"), end=batch_end.strftime("%Y-%m-%dT%H%M%S"))
+                data = fdr.DataReader(symbol="BTC", start=batch_start.strftime("%Y-%m-%dT%H%M%S"), end=batch_end.strftime("%Y-%m-%dT%H%M%S")) # type: ignore
 
                 if data is None:
                     raise RuntimeError("Empty data received.")
@@ -304,7 +304,7 @@ class DataFetcher():
 
 if __name__ == "__main__":
     datafetcher = DataFetcher()
-    duration = Duration(start="2023-07-01T00:00", end="2023-07-25T00:00", batch_size=50, interval="DAY", return_str_in_iter=False)
+    duration = Duration(start="2023-07-01T00:00", end="2023-07-02T00:00", batch_size=50, interval="DAY", return_str_in_iter=False)
 
     # data = datafetcher.get_bitcoin_candle(duration=duration)
     data = datafetcher.get_bitcoin_cme(duration=duration)
