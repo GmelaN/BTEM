@@ -3,47 +3,22 @@ import hashlib
 import requests
 import uuid
 
-from urllib.parse import urlencode, unquote
-import urllib.parse as url_parser
-
 import json
 import pandas as pd
-
-from collections import namedtuple
 
 from typing import Literal, Dict
 
 from time import sleep
-
+from random import random
 from .Duration import Duration
 
 import FinanceDataReader as fdr
 
-UrlComponents = namedtuple(typename="UrlComponents", field_names=["scheme", "netloc", "url", "params", "query", "fragment"])
-
+from RequestManager.RequestManager import RequestManager
 
 class DataFetcher():
     def __init__(self):
-        # API KEY
-        file = None
-        try:
-            file = open("./keys.json")
-            keys = json.load(file)
-
-            self.__upbit_access = keys["upbit_access"]
-            self.__upbit_secret = keys["upbit_secret"].encode("utf-8")
-            self.__upbit_jwt = jwk.OctetJWK(key=self.__upbit_secret)
-
-            self.__coinapi_access = keys["coinapi_access"]
-            file.close()
-
-        except FileNotFoundError:
-            raise FileNotFoundError("Error: api key file ./keys.json not found.")
-        except Exception as e:
-            if file is not None:
-                file.close()
-            print(e)
-
+        self.requestManager = RequestManager()
         return
 
 
@@ -68,7 +43,7 @@ class DataFetcher():
         BATCH_SIZE: int = duration.batch_size
 
         # request 준비
-        header = self._generate_header(source="coinapi")
+        header = self.requestManager.generate_header(source="coinapi")
         
         start_date, end_date = duration.strftime(timezone=True).values()
         test_end_date = (duration.start + duration.interval * 2).isoformat().split('.')[0] + "+09:00"
@@ -76,7 +51,7 @@ class DataFetcher():
         period_id = duration.period_id
 
         # 테스트 겸 데이터 헤더 가져오기
-        test_url = self._generate_url(
+        test_url = self.requestManager.generate_url(
             source="coinapi",
             api_url="v1/ohlcv/BITSTAMP_SPOT_BTC_USD/history",
             query={
@@ -88,7 +63,7 @@ class DataFetcher():
                 }
             )
 
-        test_response = requests.get(test_url, headers=header)
+        test_response = self.requestManager.delayed_get(url=test_url, headers=header)
 
         # 정상적인 응답이 돌아오지 않은 경우
         if test_response.status_code != 200:
@@ -103,7 +78,7 @@ class DataFetcher():
             for batch_start, batch_end in duration:
                 print(f"fetching {batch_start} ~ {batch_end}...", end="")
                 # URL 생성
-                url = self._generate_url(
+                url = self.requestManager.generate_url(
                     source="coinapi",
                     api_url="v1/ohlcv/BITSTAMP_SPOT_BTC_USD/history",
                     query={
@@ -116,7 +91,7 @@ class DataFetcher():
                 )
 
                 # 데이터 변환
-                response = requests.get(url, headers=header)
+                response = self.requestManager.delayed_get(url=url, headers=header)
                 resp_json = response.json()
 
                 # 정상적인 응답이 돌아오지 않은 경우
@@ -188,118 +163,12 @@ class DataFetcher():
         pass
 
 
-    def get_order_available(self):
-        pass
-
-
-    def make_order(self):
-        pass
-
-
     def get_market_code(self):
         pass
 
 
     def get_api_rate_info(self):
         pass
-
-
-    def _generate_url(self, source: Literal["upbit", "coinapi"], api_url: str, query: dict | None=None):
-        """
-        API 호출을 위한 URL을 생성하는 메서드입니다.
-
-        generates URL for calling API.
-        
-        Parameters
-        ----------
-        source : Literal["upbit", "coinapi"]
-            호출할 API의 소스를 지정합니다.
-
-        root_url : str
-            호출할 API의 루트 url을 지정합니다.
-
-        query : dict|None=None
-            호출할 API에 들어갈 질의를 지정합니다.
-        
-        
-        Raises
-        ------
-        ValueError
-            부적절한 파라미터가 전달되었을 때 발생합니다.
-
-
-        Returns
-        -------
-        result_url
-            생성된 URL 문자열    
-        """
-
-        URL_SOURCES = {
-            "upbit": "api.upbit.com",
-            "coinapi": "rest.coinapi.io",
-        }
-
-        # 파라미터 검증
-        if source not in URL_SOURCES.keys():
-            raise ValueError(f'source must be "upbit" or "coinapi". input is {source}')
-        
-        query_ = "" if query is None else url_parser.urlencode(query)
-
-
-        url_params = UrlComponents(
-            scheme = "https",
-            netloc = URL_SOURCES[source],
-            url = api_url,
-            params = "",
-            query = query_,
-            fragment = "",
-        )
-
-        result_url = str(url_parser.urlunparse(url_params))
-        return result_url
-    
-
-    def _generate_header(self, source: Literal["upbit", "coinapi"], payload: dict|None=None):
-        """
-        API 호출을 위한 header를 생성하는 메서드입니다.
-
-        generates header for calling API.
-        
-        Parameters
-        ----------
-        source : Literal["upbit", "coinapi"]
-            호출할 API의 소스를 지정합니다.
-
-        Raises
-        ------
-        None
-             
-        Returns
-        -------
-        header : dict
-            요청 정보가 담겨 있는 dictionary입니다.
-        """
-
-
-        header = {}
-        payload_ = dict()
-
-        if payload is not None:
-            for key in payload.keys():
-                payload_[key] = payload[key]
-
-        if source == "upbit":
-            payload_["access_key"] = self.__upbit_access
-
-            jwt_token = JWT().encode(payload_, key=self.__upbit_jwt)
-
-            authorization = 'Bearer {}'.format(jwt_token)
-            header = { 'Authorization': authorization }
-
-        elif source == "coinapi":
-            header = {'X-CoinAPI-Key' : self.__coinapi_access}
-
-        return header
 
 
 if __name__ == "__main__":

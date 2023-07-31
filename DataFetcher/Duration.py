@@ -8,7 +8,7 @@ class Duration():
     '''
     BTEM의 날짜 및 시간 클래스입니다.
     
-    생성자로 전달되는 interval 정보가 반영된 iterator가 내장되어 iterable 조건을 만족합니다.
+    생성자로 전달되는 interval 정보가 반영된 iterator가 내장되어 있습니다.
 
     
     예제
