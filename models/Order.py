@@ -34,10 +34,12 @@ class Order():
             - 특정 값이 들어간 경우 지정가로 주문을 진행합니다.
         '''
 
-        raise NotImplementedError("currently creating order is not supported.")
 
         # 시장가 주문
         if method == "market_price":
+            # 지정가
+            price = None
+
             # 매수
             if order_type == "bid":
                 ord_type = "price"
@@ -50,8 +52,9 @@ class Order():
                 raise ValueError(f"failed to parse order_type: {order_type}.")
 
         # 지정가 주문
-        elif type(method) is float:
+        elif type(method) is float and method > 0:
             ord_type = "limit"
+            price = method
 
         else:
             raise ValueError(f"failed to parse order_type: {order_type}.")
@@ -63,12 +66,19 @@ class Order():
             'market': 'KRW-BTC',
             'side': order_type,
             'ord_type': ord_type,
-            'price': method if type(method) is float else None,
-
+            'price': price,
         }
 
-        header = self.requestManager.generate_header(source="upbit", payload=dict())        
-        return "not implemented"
+        header = self.requestManager.generate_header(source="upbit", payload=dict())
+
+        response = None
+        try:
+            response = self.requestManager.delayed_get(url=url, headers=header)
+        except:
+            print("An error accured.")
+            return "Error"
+
+        return str(response.content)
 
 
     def order_available(self) -> Dict[str, str]:
@@ -100,15 +110,12 @@ class Order():
 
         payload = {
             'nonce': str(uuid.uuid4()),
-            'query_hash': self._encode_queries(params=params, encode_url=True, hash_alg="SHA512"),
+            'query_hash': self._encode_queries(params=params, hash_alg="SHA512"),
             'query_hash_alg': "SHA512",
         }
 
         header = self.requestManager.generate_header(source="upbit", payload=payload)
-        response = self.requestManager.delayed_get(url=url, headers=header)
-
-        if response.status_code != 200:
-            raise RuntimeError(f"server returned response code: {response.status_code}, reason: {response.reason}")
+        response = self.requestManager.delayed_get(url=url, headers=header, _raise_on_error=False)
 
         return dict(response.json())
 

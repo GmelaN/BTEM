@@ -67,6 +67,7 @@ class MAL_model():
         self.moving_avr_interval_days = moving_avr_interval_days
         self.data = data.sort_values(by=timestamp_label)    # 시간순 오름차순 정렬
         self.target_label = target_label
+        self.timestamp_label = timestamp_label
 
         return
 
@@ -105,12 +106,13 @@ class MAL_model():
         return data
     
 
-    def predict(self, MAL_short: str="MAL_5DAY", MAL_long: str="MAL_20DAY", cross_duration: int=3) -> bool:
+    def predict(self, target_time: str|None=None, MAL_short: str="MAL_5DAY", MAL_long: str="MAL_20DAY", cross_duration: int=3) -> bool:
         '''
         장기 이동 평균과 단기 이동 평균의 교차 여부를 기반으로 매수 여부를 추측합니다.
 
         Args
         ----
+        target_time: str | None=None, 예측의 대상인 시점을 선택합니다.
         MAL_short: str="MAL_5DAY", 단기 이동 평균을 선택합니다.
         MAL_short: str="MAL_20DAY", 장기 이동 평균을 선택합니다.
         cross_duration: int=3, 매수 여부 추측을 위해, 단기 이동 평균이 장기 이동 평균보다 몇일동안 더 커야 하는지를 결정합니다.
@@ -130,8 +132,22 @@ class MAL_model():
         if MAL_short not in self.data.keys() or MAL_long not in self.data.keys():
             raise ValueError(f"{MAL_short} 또는 {MAL_long}이 데이터셋에 없습니다. add_mal(inplace=True)로 데이터를 먼저 추가하세요.")
         
-        duration_index = -self.days_weight * cross_duration - 1
-        prediction = (self.data[MAL_short][duration_index : -1] > self.data[MAL_long][duration_index : -1]).mode()
+        # 예측 시점의 인덱스 구하기
+        if target_time is not None:
+            if not (self.data[self.timestamp_label] == target_time).any():
+                raise ValueError(f"{target_time}이 타임스탬프 라벨 {self.timestamp_label}에 없습니다.")
+
+            index = self.data[self.data[self.timestamp_label] == target_time].index[0]
+
+            if index - cross_duration < 0:
+                raise ValueError(f"{target_time} 이전 데이터가 {cross_duration}개보다 적습니다.")
+        
+        # 시점이 선택되지 않았다면 가장 최근으로 설정
+        else:
+            index = len(self.data)
+
+        duration_index = self.days_weight * cross_duration - 1
+        prediction = (self.data[MAL_short][index - duration_index : index] > self.data[MAL_long][index - duration_index : index]).mode()
 
         # 같은 빈도를 가진다면 False로 예측
         if len(prediction) != 1:

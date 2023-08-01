@@ -76,7 +76,7 @@ class DataFetcher():
         try:
             # 본 데이터 수집
             for batch_start, batch_end in duration:
-                print(f"fetching {batch_start} ~ {batch_end}...", end="")
+                print(f"\rfetching {batch_start} ~ {batch_end}...", end="")
                 # URL 생성
                 url = self.requestManager.generate_url(
                     source="coinapi",
@@ -108,9 +108,9 @@ class DataFetcher():
                         # null data
                         result_json[key].append(None)
 
-        except Exception as e:
+        except:
             # 예외 발생시 그동안 처리했던 데이터는 반환
-            print(e)
+            print("An error occured while processing data.")
             return pd.DataFrame(result_json)
 
         return pd.DataFrame(result_json)
@@ -151,9 +151,9 @@ class DataFetcher():
 
                 result = pd.concat([result, data], axis=1)
 
-        except Exception as e:
+        except:
             # 예외 발생시 그동안 처리했던 데이터는 반환
-            print(e)
+            print("An error occured while processing data.")
             return pd.DataFrame(result)
         
         return result

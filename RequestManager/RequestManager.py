@@ -135,7 +135,14 @@ class RequestManager():
         return header
 
 
-    def delayed_get(self, url: str, headers: dict, sleep_time: int|float=0.1, random_range: int=1) -> requests.Response:
+    def delayed_get(
+            self,
+            url: str,
+            headers: dict,
+            sleep_time: int|float=0.1,
+            random_range: int=1,
+            _raise_on_error: bool=True,
+            ) -> requests.Response:
         '''
         서버의 과부하와 이용 차단을 막기 위해, (지정된 시간 + 임의 시간)동안 딜레이하여 get 요청을 보냅니다.
 
@@ -163,8 +170,24 @@ class RequestManager():
 
         response = requests.get(url, headers=headers)
 
+        if response.status_code != 200 and _raise_on_error:
+            raise RuntimeError((
+                "server responsed with error code: "
+                f"{response.status_code}, "
+                f"reason is: {response.reason}"
+            ))
+
         return response
 
 
-    def get(self, url: str, headers: dict, *kwargs) -> requests.Response:
-        return requests.get(url, headers, *kwargs)
+    def get(self, url: str, headers: dict, _raise_on_error: bool=True, *kwargs) -> requests.Response:
+        response = requests.get(url, headers=headers, *kwargs)
+
+        if response.status_code != 200 and _raise_on_error:
+            raise RuntimeError((
+                "server responsed with error code: "
+                f"{response.status_code}, "
+                f"reason is: {response.reason}"
+            ))
+
+        return response
