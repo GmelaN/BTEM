@@ -6,7 +6,9 @@ import pandas as pd
 from datetime import timedelta
 from dateutil.parser import isoparse
 
-class MAL_model():
+from .AbstractModel import BasicModel
+
+class MAL_model(BasicModel):
     '''
     이동평균선을 기반으로 한 예측 모델입니다.
 

@@ -36,6 +36,7 @@ class Duration():
             interval: Literal["DAY", "HOUR", "MONTH"]="DAY",
             _format: str="%Y-%m-%dT%H:%M",
             return_str_in_iter: bool=True,
+            return_utc_in_iter: bool=False,
         ) -> None:
         '''
         Args
@@ -55,7 +56,7 @@ class Duration():
         # 파라미터 검증
         if batch_size <= 0:
             raise ValueError("batch size must over 0.")
-        
+
         if interval not in ("DAY", "HOUR", "MONTH"):
             raise ValueError("invaild interval vallue found.")
 
@@ -67,7 +68,7 @@ class Duration():
             start_dt = datetime.strptime(start, _format)
             end_dt = datetime.strptime(end, _format)
         except:
-            print("format and date string must be match.")
+            raise ValueError("format and date string must be match.")
 
         # start, end 간의 시간 순서 유효성 검사
         if (end_dt - start_dt) < timedelta(days=0, hours=0, seconds=0):
@@ -92,6 +93,7 @@ class Duration():
         self.current = start_dt
         self.batch_size = batch_size
         self.return_str_in_iter = return_str_in_iter
+        self.return_utc_in_iter = return_utc_in_iter
 
 
     def strftime(self, timezone=False) -> Dict[str, str]:
@@ -139,6 +141,9 @@ class Duration():
 
             if batch_end > self.end:
                 batch_end = self.end
+
+            if self.return_utc_in_iter:
+                batch_start, batch_end = batch_start - timedelta(hours=9), batch_end - timedelta(hours=9)
             
             if self.return_str_in_iter:
                 return (batch_start.isoformat().split('.')[0] + "+09:00", batch_end.isoformat().split('.')[0] + "+09:00")

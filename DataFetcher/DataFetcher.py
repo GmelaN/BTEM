@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta
 from jwt import JWT, jwk
 import hashlib
 import requests
@@ -39,12 +40,16 @@ class DataFetcher():
             pd.DataFrame: 캔들 데이터를 담고 있는 데이터프레임
         '''
 
+        # coinapi는 UTC 시간을 기준으로 함
+        if not duration.return_utc_in_iter:
+            duration.return_utc_in_iter = True
+
         # 한 번에 들고 올 데이터 수
         BATCH_SIZE: int = duration.batch_size
 
         # request 준비
         header = self.requestManager.generate_header(source="coinapi")
-        
+
         start_date, end_date = duration.strftime(timezone=True).values()
         test_end_date = (duration.start + duration.interval * 2).isoformat().split('.')[0] + "+09:00"
 
@@ -73,45 +78,52 @@ class DataFetcher():
 
         result_json = {i:[] for i in test_resp_json[0].keys()}
 
-        try:
+        # try:
             # 본 데이터 수집
-            for batch_start, batch_end in duration:
-                print(f"\rfetching {batch_start} ~ {batch_end}...", end="")
-                # URL 생성
-                url = self.requestManager.generate_url(
-                    source="coinapi",
-                    api_url="v1/ohlcv/BITSTAMP_SPOT_BTC_USD/history",
-                    query={
-                        "period_id": period_id,
-                        "time_start": batch_start,
-                        "time_end": batch_end,
-                        "include_empty_items": "true",
-                        "limit": BATCH_SIZE
-                    }
-                )
+        for batch_start, batch_end in duration:
+            print(f"\rfetching {batch_start} ~ {batch_end}...", end="")
+            # URL 생성
+            url = self.requestManager.generate_url(
+                source="coinapi",
+                api_url="v1/ohlcv/BITSTAMP_SPOT_BTC_USD/history",
+                query={
+                    "period_id": period_id,
+                    "time_start": batch_start,
+                    "time_end": batch_end,
+                    "include_empty_items": "true",
+                    "limit": BATCH_SIZE
+                }
+            )
 
-                # 데이터 변환
-                response = self.requestManager.delayed_get(url=url, headers=header)
-                resp_json = response.json()
+            # 데이터 변환
+            response = self.requestManager.delayed_get(url=url, headers=header)
+            resp_json = response.json()
 
-                # 정상적인 응답이 돌아오지 않은 경우
-                if response.status_code != 200:
-                    raise RuntimeError(response.text)
-                
-                # 받은 데이터를 전체 데이터에 연결
-                for i in resp_json:
-                    for key in result_json.keys():
-                        if key in i.keys():
-                            result_json[key].append(i[key])
-                            continue
+            # 정상적인 응답이 돌아오지 않은 경우
+            if response.status_code != 200:
+                raise RuntimeError(response.text)
+            
+            # 불러온 데이터는 UTC+00:00 -> UTC+09:00으로 변환
+            for idx, data in enumerate(resp_json):
+                    for key in data.keys():
+                        if key.find("time") != -1:
+                            data_modified = datetime.strptime(data[key].split('.')[0], "%Y-%m-%dT%H:%M:%S") + timedelta(hours=9)
+                            resp_json[idx][key] = data_modified.strftime("%Y-%m-%dT%H:%M:%S.0000000Z")
 
-                        # null data
-                        result_json[key].append(None)
+            # 받은 데이터를 전체 데이터에 연결
+            for i in resp_json:
+                for key in result_json.keys():
+                    if key in i.keys():
+                        result_json[key].append(i[key])
+                        continue
 
-        except:
-            # 예외 발생시 그동안 처리했던 데이터는 반환
-            print("An error occured while processing data.")
-            return pd.DataFrame(result_json)
+                    # null data
+                    result_json[key].append(None)
+
+        # except:
+        #     # 예외 발생시 그동안 처리했던 데이터는 반환
+        #     print("An error occured while processing data.")
+        #     return pd.DataFrame(result_json)
 
         return pd.DataFrame(result_json)
     
